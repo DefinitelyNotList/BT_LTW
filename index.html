@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Trang Chủ - Thư viện</title>
+  <title>Thư viện - Trang chủ</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/alpinejs" defer></script>
 </head>
-<body class="bg-gray-100 min-h-screen" x-data="libraryManager()">
+<body class="bg-gray-100 min-h-screen" x-data="dashboard()" x-init="fetchStats()">
   <!-- Mobile Header -->
   <header class="bg-white shadow-md px-4 py-3 flex items-center justify-between md:hidden">
     <h1 class="text-lg font-bold text-blue-600">📚 Thư viện</h1>
@@ -45,129 +45,78 @@
 
     <!-- Main Content -->
     <main class="flex-1 p-6 md:ml-64">
-      <div class="flex justify-between items-center mb-6">
-        <h1 class="text-2xl font-bold text-gray-800">📚 Thư viện</h1>
-        <button @click="showModal = true" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">+ Thêm Sách</button>
+      <h1 class="text-2xl font-bold text-gray-800 mb-6">🏠 Trang chủ</h1>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Tổng số sách -->
+        <div class="bg-white shadow rounded-lg p-6">
+          <h2 class="text-lg font-semibold text-gray-600 mb-2">📚 Tổng số sách</h2>
+          <p class="text-3xl font-bold text-blue-600" x-text="stats.total_books">0</p>
+        </div>
+
+        <!-- Sách đang cho mượn -->
+        <div class="bg-white shadow rounded-lg p-6">
+          <h2 class="text-lg font-semibold text-gray-600 mb-2">📦 Sách đang cho mượn</h2>
+          <p class="text-3xl font-bold text-yellow-500" x-text="stats.borrowed_books">0</p>
+        </div>
+
+        <!-- Sách đã trả -->
+        <div class="bg-white shadow rounded-lg p-6">
+          <h2 class="text-lg font-semibold text-gray-600 mb-2">✅ Sách đã trả</h2>
+          <p class="text-3xl font-bold text-green-500" x-text="stats.returned_books">0</p>
+        </div>
       </div>
 
-      <!-- Book List -->
-      <div class="overflow-x-auto bg-white shadow rounded-lg">
-        <table class="min-w-full divide-y divide-gray-200 text-sm">
-          <thead class="bg-gray-50">
+      <!-- Sách mới nhất -->
+      <h2 class="text-xl font-bold text-gray-800 mt-10 mb-4">🆕 Sách mới thêm gần đây</h2>
+      <div class="bg-white shadow rounded-lg p-4 overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead class="bg-gray-100">
             <tr>
-              <th class="px-6 py-3 text-left font-semibold text-gray-600">Mã sách</th>
-              <th class="px-6 py-3 text-left font-semibold text-gray-600">Tên sách</th>
-              <th class="px-6 py-3 text-left font-semibold text-gray-600">Tác giả</th>
-              <th class="px-6 py-3 text-left font-semibold text-gray-600">Thể loại</th>
-              <th class="px-6 py-3 text-left font-semibold text-gray-600">Số lượng</th>
-              <th class="px-6 py-3 text-left font-semibold text-gray-600">Thao tác</th>
+              <th class="px-4 py-2 text-left font-semibold text-gray-600">ID</th>
+              <th class="px-4 py-2 text-left font-semibold text-gray-600">Tiêu đề</th>
+              <th class="px-4 py-2 text-left font-semibold text-gray-600">Tác giả</th>
+              <th class="px-4 py-2 text-left font-semibold text-gray-600">Thể loại</th>
+              <th class="px-4 py-2 text-left font-semibold text-gray-600">Số lượng</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-gray-100 bg-white">
-            <template x-for="(book, index) in books" :key="index">
+          <tbody class="divide-y divide-gray-200">
+            <template x-for="book in latestBooks" :key="book.id">
               <tr>
-                <td class="px-6 py-4" x-text="book.id"></td>
-                <td class="px-6 py-4" x-text="book.title"></td>
-                <td class="px-6 py-4" x-text="book.author"></td>
-                <td class="px-6 py-4" x-text="book.category"></td>
-                <td class="px-6 py-4" x-text="book.quantity"></td>
-                <td class="px-6 py-4 space-x-2">
-                  <button class="text-green-600 hover:underline" @click="editBook(book)">Sửa</button>
-                  <button class="text-red-600 hover:underline" @click="removeBook(index)">Xóa</button>
-                </td>
+                <td class="px-4 py-2" x-text="book.id"></td>
+                <td class="px-4 py-2" x-text="book.title"></td>
+                <td class="px-4 py-2" x-text="book.author"></td>
+                <td class="px-4 py-2" x-text="book.category"></td>
+                <td class="px-4 py-2" x-text="book.quantity"></td>
               </tr>
             </template>
           </tbody>
         </table>
-      </div>
-
-      <!-- Modal Thêm Sách -->
-      <div x-show="showModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-40">
-        <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md" @click.away="showModal = false">
-          <h2 class="text-xl font-bold mb-4">Thêm Sách Mới</h2>
-          <form @submit.prevent="addBook">
-            <div class="mb-3">
-              <label class="block font-medium mb-1">Tên sách</label>
-              <input type="text" class="w-full border rounded px-3 py-2" x-model="newBook.title" required />
-            </div>
-            <div class="mb-3">
-              <label class="block font-medium mb-1">Tác giả</label>
-              <input type="text" class="w-full border rounded px-3 py-2" x-model="newBook.author" required />
-            </div>
-            <div class="mb-3">
-              <label class="block font-medium mb-1">Thể loại</label>
-              <input type="text" class="w-full border rounded px-3 py-2" x-model="newBook.category" required />
-            </div>
-            <div class="mb-3">
-              <label class="block font-medium mb-1">Số lượng</label>
-              <input type="number" class="w-full border rounded px-3 py-2" x-model="newBook.quantity" required />
-            </div>
-            <div class="flex justify-end space-x-2">
-              <button type="button" @click="showModal = false" class="px-4 py-2 border rounded">Hủy</button>
-              <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Lưu</button>
-            </div>
-          </form>
-        </div>
       </div>
     </main>
   </div>
 
   <!-- AlpineJS logic -->
   <script>
-    function libraryManager() {
+    function dashboard() {
       return {
-        books: [], // danh sách sách từ backend (sẽ load từ MySQL)
-        newBook: {
-          title: '',
-          author: '',
-          category: '',
-          quantity: 1,
+        stats: {
+          total_books: 0,
+          borrowed_books: 0,
+          returned_books: 0
         },
-        showModal: false,
+        latestBooks: [],
 
-        // Lấy danh sách sách từ backend
-        fetchBooks() {
-          fetch('/api/books')  // Đây là API endpoint cho việc lấy danh sách sách
-            .then(response => response.json())
-            .then(data => this.books = data)
-            .catch(error => console.error('Error fetching books:', error));
-        },
-
-        addBook() {
-          fetch('/api/books', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(this.newBook),
-          })
-            .then(response => response.json())
+        fetchStats() {
+          fetch('php/get_stats.php')
+            .then(res => res.json())
             .then(data => {
-              this.books.push(data);
-              this.newBook = { title: '', author: '', category: '', quantity: 1 };
-              this.showModal = false;
+              this.stats = data.stats;
+              this.latestBooks = data.latest_books;
             })
-            .catch(error => console.error('Error adding book:', error));
-        },
-
-        removeBook(index) {
-          const bookId = this.books[index].id;
-          fetch(`/api/books/${bookId}`, {
-            method: 'DELETE',
-          })
-            .then(response => {
-              if (response.ok) {
-                this.books.splice(index, 1);
-              }
-            })
-            .catch(error => console.error('Error deleting book:', error));
-        },
-
-        editBook(book) {
-          // Cập nhật sách nếu cần
-          console.log('Sửa sách:', book);
-        },
-      };
+            .catch(err => console.error('Lỗi lấy dữ liệu thống kê:', err));
+        }
+      }
     }
   </script>
 </body>
