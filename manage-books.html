@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Thư viện - Trang chủ</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/alpinejs" defer></script>
+</head>
+<body class="bg-gray-100 min-h-screen" x-data="dashboard()" x-init="fetchStats()">
+  <!-- Mobile Header -->
+  <header class="bg-white shadow-md px-4 py-3 flex items-center justify-between md:hidden">
+    <h1 class="text-lg font-bold text-blue-600">📚 Thư viện</h1>
+    <button @click="sidebarOpen = !sidebarOpen" class="text-gray-700 focus:outline-none">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2"
+        viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+        <path x-show="!sidebarOpen" d="M4 6h16M4 12h16M4 18h16" />
+        <path x-show="sidebarOpen" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
+  </header>
+
+  <div class="flex" x-data="{ sidebarOpen: false }">
+    <!-- Sidebar -->
+    <aside 
+      class="fixed inset-y-0 left-0 z-30 w-64 bg-white shadow-lg p-5 transform transition-transform duration-200 ease-in-out 
+             md:static md:translate-x-0 md:block"
+      :class="{ '-translate-x-full': !sidebarOpen }"
+    >
+      <h2 class="text-xl font-bold text-blue-600 mb-6 hidden md:block">📚 Thư viện</h2>
+      <nav class="flex flex-col space-y-4">
+        <a href="index.html" class="text-blue-600 font-semibold">🏠 Trang chủ</a>
+        <a href="manage-books.html" class="text-gray-700 hover:text-blue-500">📘 Quản lý sách</a>
+        <a href="manage-loan.html" class="text-gray-700 hover:text-blue-500">🔁 Quản lý cho thuê/mượn</a>
+      </nav>
+    </aside>
+
+    <!-- Overlay -->
+    <div 
+      class="fixed inset-0 bg-black bg-opacity-30 z-20 md:hidden"
+      x-show="sidebarOpen"
+      @click="sidebarOpen = false"
+      x-transition
+    ></div>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-6 md:ml-64">
+      <h1 class="text-2xl font-bold text-gray-800 mb-6">🏠 Trang chủ</h1>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Tổng số sách -->
+        <div class="bg-white shadow rounded-lg p-6">
+          <h2 class="text-lg font-semibold text-gray-600 mb-2">📚 Tổng số sách</h2>
+          <p class="text-3xl font-bold text-blue-600" x-text="stats.total_books">0</p>
+        </div>
+
+        <!-- Sách đang cho mượn -->
+        <div class="bg-white shadow rounded-lg p-6">
+          <h2 class="text-lg font-semibold text-gray-600 mb-2">📦 Sách đang cho mượn</h2>
+          <p class="text-3xl font-bold text-yellow-500" x-text="stats.borrowed_books">0</p>
+        </div>
+
+        <!-- Sách đã trả -->
+        <div class="bg-white shadow rounded-lg p-6">
+          <h2 class="text-lg font-semibold text-gray-600 mb-2">✅ Sách đã trả</h2>
+          <p class="text-3xl font-bold text-green-500" x-text="stats.returned_books">0</p>
+        </div>
+      </div>
+
+      <!-- Sách mới nhất -->
+      <h2 class="text-xl font-bold text-gray-800 mt-10 mb-4">🆕 Sách mới thêm gần đây</h2>
+      <div class="bg-white shadow rounded-lg p-4 overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead class="bg-gray-100">
+            <tr>
+              <th class="px-4 py-2 text-left font-semibold text-gray-600">ID</th>
+              <th class="px-4 py-2 text-left font-semibold text-gray-600">Tiêu đề</th>
+              <th class="px-4 py-2 text-left font-semibold text-gray-600">Tác giả</th>
+              <th class="px-4 py-2 text-left font-semibold text-gray-600">Thể loại</th>
+              <th class="px-4 py-2 text-left font-semibold text-gray-600">Số lượng</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200">
+            <template x-for="book in latestBooks" :key="book.id">
+              <tr>
+                <td class="px-4 py-2" x-text="book.id"></td>
+                <td class="px-4 py-2" x-text="book.title"></td>
+                <td class="px-4 py-2" x-text="book.author"></td>
+                <td class="px-4 py-2" x-text="book.category"></td>
+                <td class="px-4 py-2" x-text="book.quantity"></td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <!-- AlpineJS logic -->
+  <script>
+    function dashboard() {
+      return {
+        stats: {
+          total_books: 0,
+          borrowed_books: 0,
+          returned_books: 0
+        },
+        latestBooks: [],
+
+        fetchStats() {
+          fetch('php/get_stats.php')
+            .then(res => res.json())
+            .then(data => {
+              this.stats = data.stats;
+              this.latestBooks = data.latest_books;
+            })
+            .catch(err => console.error('Lỗi lấy dữ liệu thống kê:', err));
+        }
+      }
+    }
+  </script>
+</body>
+</html>

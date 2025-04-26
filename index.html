@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trang Chủ - Thư viện</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/alpinejs" defer></script>
+</head>
+<body class="bg-gray-100 min-h-screen" x-data="libraryManager()">
+  <!-- Mobile Header -->
+  <header class="bg-white shadow-md px-4 py-3 flex items-center justify-between md:hidden">
+    <h1 class="text-lg font-bold text-blue-600">📚 Thư viện</h1>
+    <button @click="sidebarOpen = !sidebarOpen" class="text-gray-700 focus:outline-none">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2"
+        viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+        <path x-show="!sidebarOpen" d="M4 6h16M4 12h16M4 18h16" />
+        <path x-show="sidebarOpen" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
+  </header>
+
+  <div class="flex" x-data="{ sidebarOpen: false }">
+    <!-- Sidebar -->
+    <aside 
+      class="fixed inset-y-0 left-0 z-30 w-64 bg-white shadow-lg p-5 transform transition-transform duration-200 ease-in-out 
+             md:static md:translate-x-0 md:block"
+      :class="{ '-translate-x-full': !sidebarOpen }"
+    >
+      <h2 class="text-xl font-bold text-blue-600 mb-6 hidden md:block">📚 Thư viện</h2>
+      <nav class="flex flex-col space-y-4">
+        <a href="index.html" class="text-blue-600 font-semibold">🏠 Trang chủ</a>
+        <a href="manage-books.html" class="text-gray-700 hover:text-blue-500">📘 Quản lý sách</a>
+        <a href="manage-loan.html" class="text-gray-700 hover:text-blue-500">🔁 Quản lý cho thuê/mượn</a>
+      </nav>
+    </aside>
+
+    <!-- Overlay -->
+    <div 
+      class="fixed inset-0 bg-black bg-opacity-30 z-20 md:hidden"
+      x-show="sidebarOpen"
+      @click="sidebarOpen = false"
+      x-transition
+    ></div>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-6 md:ml-64">
+      <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">📚 Thư viện</h1>
+        <button @click="showModal = true" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">+ Thêm Sách</button>
+      </div>
+
+      <!-- Book List -->
+      <div class="overflow-x-auto bg-white shadow rounded-lg">
+        <table class="min-w-full divide-y divide-gray-200 text-sm">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-6 py-3 text-left font-semibold text-gray-600">Mã sách</th>
+              <th class="px-6 py-3 text-left font-semibold text-gray-600">Tên sách</th>
+              <th class="px-6 py-3 text-left font-semibold text-gray-600">Tác giả</th>
+              <th class="px-6 py-3 text-left font-semibold text-gray-600">Thể loại</th>
+              <th class="px-6 py-3 text-left font-semibold text-gray-600">Số lượng</th>
+              <th class="px-6 py-3 text-left font-semibold text-gray-600">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100 bg-white">
+            <template x-for="(book, index) in books" :key="index">
+              <tr>
+                <td class="px-6 py-4" x-text="book.id"></td>
+                <td class="px-6 py-4" x-text="book.title"></td>
+                <td class="px-6 py-4" x-text="book.author"></td>
+                <td class="px-6 py-4" x-text="book.category"></td>
+                <td class="px-6 py-4" x-text="book.quantity"></td>
+                <td class="px-6 py-4 space-x-2">
+                  <button class="text-green-600 hover:underline" @click="editBook(book)">Sửa</button>
+                  <button class="text-red-600 hover:underline" @click="removeBook(index)">Xóa</button>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Modal Thêm Sách -->
+      <div x-show="showModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-40">
+        <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md" @click.away="showModal = false">
+          <h2 class="text-xl font-bold mb-4">Thêm Sách Mới</h2>
+          <form @submit.prevent="addBook">
+            <div class="mb-3">
+              <label class="block font-medium mb-1">Tên sách</label>
+              <input type="text" class="w-full border rounded px-3 py-2" x-model="newBook.title" required />
+            </div>
+            <div class="mb-3">
+              <label class="block font-medium mb-1">Tác giả</label>
+              <input type="text" class="w-full border rounded px-3 py-2" x-model="newBook.author" required />
+            </div>
+            <div class="mb-3">
+              <label class="block font-medium mb-1">Thể loại</label>
+              <input type="text" class="w-full border rounded px-3 py-2" x-model="newBook.category" required />
+            </div>
+            <div class="mb-3">
+              <label class="block font-medium mb-1">Số lượng</label>
+              <input type="number" class="w-full border rounded px-3 py-2" x-model="newBook.quantity" required />
+            </div>
+            <div class="flex justify-end space-x-2">
+              <button type="button" @click="showModal = false" class="px-4 py-2 border rounded">Hủy</button>
+              <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Lưu</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- AlpineJS logic -->
+  <script>
+    function libraryManager() {
+      return {
+        books: [], // danh sách sách từ backend (sẽ load từ MySQL)
+        newBook: {
+          title: '',
+          author: '',
+          category: '',
+          quantity: 1,
+        },
+        showModal: false,
+
+        // Lấy danh sách sách từ backend
+        fetchBooks() {
+          fetch('/api/books')  // Đây là API endpoint cho việc lấy danh sách sách
+            .then(response => response.json())
+            .then(data => this.books = data)
+            .catch(error => console.error('Error fetching books:', error));
+        },
+
+        addBook() {
+          fetch('/api/books', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(this.newBook),
+          })
+            .then(response => response.json())
+            .then(data => {
+              this.books.push(data);
+              this.newBook = { title: '', author: '', category: '', quantity: 1 };
+              this.showModal = false;
+            })
+            .catch(error => console.error('Error adding book:', error));
+        },
+
+        removeBook(index) {
+          const bookId = this.books[index].id;
+          fetch(`/api/books/${bookId}`, {
+            method: 'DELETE',
+          })
+            .then(response => {
+              if (response.ok) {
+                this.books.splice(index, 1);
+              }
+            })
+            .catch(error => console.error('Error deleting book:', error));
+        },
+
+        editBook(book) {
+          // Cập nhật sách nếu cần
+          console.log('Sửa sách:', book);
+        },
+      };
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quản Lý Cho Thuê/Mượn - Thư viện</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/alpinejs" defer></script>
+</head>
+<body class="bg-gray-100 min-h-screen" x-data="loanManager()" x-init="init()">
+  <!-- Mobile Header -->
+  <header class="bg-white shadow-md px-4 py-3 flex items-center justify-between md:hidden">
+    <h1 class="text-lg font-bold text-blue-600">📚 Thư viện</h1>
+    <button @click="sidebarOpen = !sidebarOpen" class="text-gray-700 focus:outline-none">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2"
+        viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+        <path x-show="!sidebarOpen" d="M4 6h16M4 12h16M4 18h16" />
+        <path x-show="sidebarOpen" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
+  </header>
+
+  <div class="flex" x-data="{ sidebarOpen: false }">
+    <!-- Sidebar -->
+    <aside 
+      class="fixed inset-y-0 left-0 z-30 w-64 bg-white shadow-lg p-5 transform transition-transform duration-200 ease-in-out 
+             md:static md:translate-x-0 md:block"
+      :class="{ '-translate-x-full': !sidebarOpen }"
+    >
+      <h2 class="text-xl font-bold text-blue-600 mb-6 hidden md:block">📚 Thư viện</h2>
+      <nav class="flex flex-col space-y-4">
+        <a href="index.html" class="text-gray-700 hover:text-blue-500">🏠 Trang chủ</a>
+        <a href="manage-books.html" class="text-gray-700 hover:text-blue-500">📘 Quản lý sách</a>
+        <a href="manage-loan.html" class="text-blue-600 font-semibold">🔁 Quản lý cho thuê/mượn</a>
+      </nav>
+    </aside>
+
+    <!-- Overlay -->
+    <div 
+      class="fixed inset-0 bg-black bg-opacity-30 z-20 md:hidden"
+      x-show="sidebarOpen"
+      @click="sidebarOpen = false"
+      x-transition
+    ></div>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-6 md:ml-64">
+      <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">🔁 Quản lý Cho Thuê/Mượn</h1>
+        <div class="flex space-x-2">
+          <input 
+            type="text" 
+            class="px-4 py-2 border rounded"
+            x-model="searchQuery"
+            placeholder="Tìm kiếm theo tên sách hoặc người mượn"
+            @input="searchLoans"
+          />
+        </div>
+      </div>
+
+      <!-- Loan List -->
+      <div class="overflow-x-auto bg-white shadow rounded-lg">
+        <table class="min-w-full divide-y divide-gray-200 text-sm">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-6 py-3 text-left font-semibold text-gray-600">Mã mượn</th>
+              <th class="px-6 py-3 text-left font-semibold text-gray-600">Tên người mượn</th>
+              <th class="px-6 py-3 text-left font-semibold text-gray-600">Số điện thoại</th>
+              <th class="px-6 py-3 text-left font-semibold text-gray-600">Tên sách</th>
+              <th class="px-6 py-3 text-left font-semibold text-gray-600">Ngày mượn</th>
+              <th class="px-6 py-3 text-left font-semibold text-gray-600">Trả sách</th>
+              <th class="px-6 py-3 text-left font-semibold text-gray-600">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100 bg-white">
+            <template x-for="(loan, index) in filteredLoans" :key="loan.id">
+              <tr>
+                <td class="px-6 py-4" x-text="loan.id"></td>
+                <td class="px-6 py-4" x-text="loan.user_name"></td>
+                <td class="px-6 py-4" x-text="loan.phone"></td>
+                <td class="px-6 py-4" x-text="loan.book_title"></td>
+                <td class="px-6 py-4" x-text="loan.loan_date"></td>
+                <td class="px-6 py-4" x-text="loan.returned === '1' ? 'Đã trả' : 'Chưa trả'"></td>
+                <td class="px-6 py-4 space-x-2">
+                  <button class="text-blue-600 hover:underline" 
+                    x-show="loan.returned === '0'" 
+                    @click="markAsReturned(loan)">
+                    Đánh dấu trả
+                  </button>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <!-- AlpineJS logic -->
+  <script>
+    function loanManager() {
+      return {
+        loans: [],
+        searchQuery: '',
+        filteredLoans: [],
+
+        init() {
+          this.fetchLoans();
+        },
+
+        fetchLoans() {
+          fetch('php/get_loans.php')
+            .then(response => response.json())
+            .then(data => {
+              this.loans = data;
+              this.filteredLoans = data;
+            })
+            .catch(error => console.error('Lỗi khi lấy dữ liệu:', error));
+        },
+
+        searchLoans() {
+          const query = this.searchQuery.toLowerCase();
+          this.filteredLoans = this.loans.filter(loan =>
+            loan.book_title.toLowerCase().includes(query) ||
+            loan.user_name.toLowerCase().includes(query)
+          );
+        },
+
+        markAsReturned(loan) {
+          const formData = new FormData();
+          formData.append('id', loan.id);
+
+          fetch('php/update_returned.php', {
+            method: 'POST',
+            body: formData
+          })
+          .then(response => response.json())
+          .then(result => {
+            if (result.success) {
+              loan.returned = '1';
+              this.searchLoans();
+            }
+          })
+          .catch(error => console.error('Lỗi khi cập nhật:', error));
+        },
+      };
+    }
+  </script>
+</body>
+</html>
