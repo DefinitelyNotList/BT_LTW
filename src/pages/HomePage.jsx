@@ -3,8 +3,27 @@ import PostCard from "../components/PostCard";
 import { useBlog } from "../context/BlogContext";
 
 function HomePage() {
-  const { posts } = useBlog();
+  const { posts, isLoadingPosts, postsError } = useBlog();
   const [featuredPost, ...recentPosts] = posts;
+
+  if (isLoadingPosts) {
+    return (
+      <section className="empty-panel">
+        <p className="eyebrow">Loading</p>
+        <h1>Fetching blog posts from the Express API.</h1>
+      </section>
+    );
+  }
+
+  if (postsError) {
+    return (
+      <section className="empty-panel">
+        <p className="eyebrow">API error</p>
+        <h1>Blog posts could not be loaded.</h1>
+        <p>{postsError}</p>
+      </section>
+    );
+  }
 
   return (
     <div className="content-stack">
@@ -13,8 +32,8 @@ function HomePage() {
           <p className="eyebrow">React Blog Example</p>
           <h1>Simple public blog, protected admin workflow.</h1>
           <p>
-            This sample project shows a clean React structure with separate files,
-            route protection, and a dashboard for managing posts.
+            This sample project loads posts from a Node and Express backend while
+            keeping authentication and protected routes in the React frontend.
           </p>
           <div className="hero-panel__actions">
             <Link className="solid-link" to="/posts">

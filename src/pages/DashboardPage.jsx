@@ -3,7 +3,7 @@ import { useBlog } from "../context/BlogContext";
 import { formatDate } from "../utils/date";
 
 function DashboardPage() {
-  const { posts, deletePost, resetPosts } = useBlog();
+  const { posts, deletePost, isLoadingPosts, postsError, resetPosts } = useBlog();
 
   function handleDelete(slug) {
     const confirmed = window.confirm("Delete this post?");
@@ -14,11 +14,30 @@ function DashboardPage() {
   }
 
   function handleReset() {
-    const confirmed = window.confirm("Reset the blog to the default sample posts?");
+    const confirmed = window.confirm("Discard local changes and reload posts from the backend API?");
 
     if (confirmed) {
-      resetPosts();
+      void resetPosts();
     }
+  }
+
+  if (isLoadingPosts) {
+    return (
+      <section className="empty-panel">
+        <p className="eyebrow">Loading</p>
+        <h1>Loading dashboard data from the API.</h1>
+      </section>
+    );
+  }
+
+  if (postsError) {
+    return (
+      <section className="empty-panel">
+        <p className="eyebrow">API error</p>
+        <h1>Dashboard data could not be loaded.</h1>
+        <p>{postsError}</p>
+      </section>
+    );
   }
 
   return (
@@ -27,7 +46,7 @@ function DashboardPage() {
         <div>
           <p className="eyebrow">Protected dashboard</p>
           <h1>Manage blog content</h1>
-          <p>Create, edit, delete, and reset posts from one place.</p>
+          <p>The list comes from the Express API. Create, edit, and delete stay local in the frontend.</p>
         </div>
 
         <div className="dashboard-banner__actions">
@@ -35,7 +54,7 @@ function DashboardPage() {
             Create post
           </Link>
           <button className="ghost-button" onClick={handleReset} type="button">
-            Reset sample data
+            Reload API posts
           </button>
         </div>
       </section>
@@ -56,7 +75,7 @@ function DashboardPage() {
           <article className="dashboard-card" key={post.id}>
             <div>
               <p className="dashboard-card__meta">
-                {formatDate(post.updatedAt)} • {post.author}
+                {formatDate(post.updatedAt)} | {post.author}
               </p>
               <h2>{post.title}</h2>
               <p>{post.excerpt}</p>

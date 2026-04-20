@@ -2,7 +2,26 @@ import PostCard from "../components/PostCard";
 import { useBlog } from "../context/BlogContext";
 
 function PostsPage() {
-  const { posts } = useBlog();
+  const { posts, isLoadingPosts, postsError } = useBlog();
+
+  if (isLoadingPosts) {
+    return (
+      <section className="empty-panel">
+        <p className="eyebrow">Loading</p>
+        <h1>Loading blog list from the API.</h1>
+      </section>
+    );
+  }
+
+  if (postsError) {
+    return (
+      <section className="empty-panel">
+        <p className="eyebrow">API error</p>
+        <h1>Blog archive unavailable.</h1>
+        <p>{postsError}</p>
+      </section>
+    );
+  }
 
   return (
     <div className="content-stack">

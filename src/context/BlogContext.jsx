@@ -1,9 +1,8 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
-import defaultPosts from "../data/defaultPosts";
+import { fetchBlogDetail, fetchBlogList } from "../services/blogApi";
 import { buildUniqueSlug, normalizeTags } from "../utils/slug";
 
 const BlogContext = createContext(null);
-const STORAGE_KEY = "simple-blog-posts";
 
 function sortPosts(posts) {
   return [...posts].sort(
@@ -13,32 +12,109 @@ function sortPosts(posts) {
   );
 }
 
-function readStoredPosts() {
-  const rawPosts = window.localStorage.getItem(STORAGE_KEY);
+function toPostSummary(post) {
+  return {
+    id: post.id,
+    slug: post.slug,
+    title: post.title,
+    excerpt: post.excerpt,
+    author: post.author,
+    tags: post.tags,
+    publishedAt: post.publishedAt,
+    updatedAt: post.updatedAt,
+  };
+}
 
-  if (!rawPosts) {
-    return sortPosts(defaultPosts);
-  }
+function findPostByIdentifier(posts, identifier) {
+  return posts.find((post) => post.slug === identifier || post.id === identifier) ?? null;
+}
 
-  try {
-    const parsedPosts = JSON.parse(rawPosts);
-    return sortPosts(parsedPosts);
-  } catch {
-    return sortPosts(defaultPosts);
-  }
+function findDetailByIdentifier(details, identifier) {
+  return (
+    Object.values(details).find(
+      (post) => post.slug === identifier || post.id === identifier,
+    ) ?? null
+  );
 }
 
 export function BlogProvider({ children }) {
-  const [posts, setPosts] = useState(() => readStoredPosts());
+  const [posts, setPosts] = useState([]);
+  const [isLoadingPosts, setIsLoadingPosts] = useState(true);
+  const [postsError, setPostsError] = useState("");
+  const [postDetails, setPostDetails] = useState({});
+
   const postsRef = useRef(posts);
+  const postDetailsRef = useRef(postDetails);
 
   useEffect(() => {
     postsRef.current = posts;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(posts));
   }, [posts]);
 
+  useEffect(() => {
+    postDetailsRef.current = postDetails;
+  }, [postDetails]);
+
+  async function refreshPosts() {
+    setIsLoadingPosts(true);
+    setPostsError("");
+
+    try {
+      const remotePosts = await fetchBlogList();
+      setPosts(sortPosts(remotePosts));
+      setPostDetails({});
+      return remotePosts;
+    } catch (error) {
+      setPosts([]);
+      setPostDetails({});
+      setPostsError(error.message);
+      return [];
+    } finally {
+      setIsLoadingPosts(false);
+    }
+  }
+
+  useEffect(() => {
+    void refreshPosts();
+  }, []);
+
   function getPostBySlug(slug) {
-    return posts.find((post) => post.slug === slug) ?? null;
+    return (
+      postDetailsRef.current[slug] ??
+      postsRef.current.find((post) => post.slug === slug) ??
+      null
+    );
+  }
+
+  async function loadPostDetail(identifier) {
+    const cachedDetail = findDetailByIdentifier(postDetailsRef.current, identifier);
+
+    if (cachedDetail) {
+      return cachedDetail;
+    }
+
+    const remotePost = await fetchBlogDetail(identifier);
+
+    setPostDetails((currentDetails) => ({
+      ...currentDetails,
+      [remotePost.slug]: remotePost,
+    }));
+
+    setPosts((currentPosts) => {
+      const nextSummary = toPostSummary(remotePost);
+      const existingPost = findPostByIdentifier(currentPosts, identifier);
+
+      if (!existingPost) {
+        return sortPosts([nextSummary, ...currentPosts]);
+      }
+
+      return sortPosts(
+        currentPosts.map((post) =>
+          post.id === existingPost.id ? { ...post, ...nextSummary } : post,
+        ),
+      );
+    });
+
+    return remotePost;
   }
 
   function createPost(values, currentUser) {
@@ -55,14 +131,18 @@ export function BlogProvider({ children }) {
       updatedAt: now,
     };
 
-    setPosts((currentPosts) => sortPosts([nextPost, ...currentPosts]));
+    setPostDetails((currentDetails) => ({
+      ...currentDetails,
+      [nextPost.slug]: nextPost,
+    }));
+
+    setPosts((currentPosts) => sortPosts([toPostSummary(nextPost), ...currentPosts]));
 
     return nextPost;
   }
 
   function updatePost(originalSlug, values, currentUser) {
-    const currentPost =
-      postsRef.current.find((post) => post.slug === originalSlug) ?? null;
+    const currentPost = postDetailsRef.current[originalSlug] ?? null;
 
     if (!currentPost) {
       return null;
@@ -83,9 +163,18 @@ export function BlogProvider({ children }) {
       updatedAt: new Date().toISOString(),
     };
 
+    setPostDetails((currentDetails) => {
+      const nextDetails = { ...currentDetails };
+      delete nextDetails[originalSlug];
+      nextDetails[nextPost.slug] = nextPost;
+      return nextDetails;
+    });
+
     setPosts((currentPosts) =>
       sortPosts(
-        currentPosts.map((post) => (post.id === currentPost.id ? nextPost : post)),
+        currentPosts.map((post) =>
+          post.id === currentPost.id ? toPostSummary(nextPost) : post,
+        ),
       ),
     );
 
@@ -94,21 +183,30 @@ export function BlogProvider({ children }) {
 
   function deletePost(slug) {
     setPosts((currentPosts) => currentPosts.filter((post) => post.slug !== slug));
+    setPostDetails((currentDetails) => {
+      const nextDetails = { ...currentDetails };
+      delete nextDetails[slug];
+      return nextDetails;
+    });
   }
 
   function resetPosts() {
-    setPosts(sortPosts(defaultPosts));
+    return refreshPosts();
   }
 
   return (
     <BlogContext.Provider
       value={{
         posts,
+        isLoadingPosts,
+        postsError,
         getPostBySlug,
+        loadPostDetail,
         createPost,
         updatePost,
         deletePost,
         resetPosts,
+        refreshPosts,
       }}
     >
       {children}
